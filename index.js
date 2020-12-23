@@ -59,9 +59,14 @@ function iteration() {
         const tenMinAvg = cToF(average(results[0].data
             .filter(i => i.tempC < 30) // if reading is > 30 celsius, it's probably a sensor error
             .map(i => i.tempC)))
-        if (tenMinAvg > ALARM_MINIMUM_TEMP_F) {
-            postMessage(`*WARNING*: :warning: Freezer too warm! Average temperature over last 10 minutes was ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'} @channel`)
-            setTopic(`Last health check :warning:. Average temperature 10 min temp: ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'}`)
+	const history = results[0].data;
+	const temperatureIsIncreasing = history[history.length - 1] > history[history.length - 2];
+	console.log(`10 Min Avg: ${tenMinAvg}°F, Temp is ${temperatureIsIncreasing ? 'rising' : 'falling'}, motor state: ${isFreezerRunning ? 'running' : 'not running'}`)
+        if (tenMinAvg > ALARM_MINIMUM_TEMP_F && temperatureIsIncreasing) {
+	    console.log('Freezer too warm and getting warmer! Posting message to slack...');
+            postMessage(`*WARNING*: :warning: Freezer too warm and getting warmer! Average temperature over last 10 minutes was ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'} @channel`)
+		.then(() => console.log('Sent.'));
+            // setTopic(`Last health check :warning:. Average temperature 10 min temp: ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'}`)
         } else {
             // setTopic(`Last health check :heavy_check_mark: at ${new Date()}. 10m Avg T: ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'}`)
         }
@@ -69,9 +74,11 @@ function iteration() {
     .catch(error => {
         console.error(error);
         postMessage(`*WARNING*: :warning: Freezer thermostat computer may be down! Check immediately! http://${config.freezerPiHost} -- ${error} @channel`);
-        setTopic(`Last health check :warning: No response from freezer!`);
+        // setTopic(`Last health check :warning: No response from freezer!`);
     })
 }
+
+console.log('Freezer monitor running...');
 
 iteration();
 
