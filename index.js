@@ -55,21 +55,35 @@ function average(nums) {
 function iteration() {
     Promise.all([getTemperatureHistory(), getRunningState()])
     .then(results => {
+	statusMessage = '';
         const isFreezerRunning = results[1].data.isCooling;
         const tenMinAvg = cToF(average(results[0].data
             .filter(i => i.tempC < 30) // if reading is > 30 celsius, it's probably a sensor error
-            .map(i => i.tempC)))
+            .map(i => i.tempC)));
+	statusMessage += `10 Min Avg: ${tenMinAvg}°F `;
+
 	const history = results[0].data;
-	const temperatureIsIncreasing = history[history.length - 1] > history[history.length - 2];
-	console.log(`10 Min Avg: ${tenMinAvg}°F, Temp is ${temperatureIsIncreasing ? 'rising' : 'falling'}, motor state: ${isFreezerRunning ? 'running' : 'not running'}`)
-        if (tenMinAvg > ALARM_MINIMUM_TEMP_F && temperatureIsIncreasing) {
-	    console.log('Freezer too warm and getting warmer! Posting message to slack...');
-            postMessage(`*WARNING*: :warning: Freezer too warm and getting warmer! Average temperature over last 10 minutes was ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'} @channel`)
-		.then(() => console.log('Sent.'));
-            // setTopic(`Last health check :warning:. Average temperature 10 min temp: ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'}`)
-        } else {
-            // setTopic(`Last health check :heavy_check_mark: at ${new Date()}. 10m Avg T: ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'}`)
-        }
+	const t1 = history[history.length - 1].tempC;
+	let t2 = t1;
+	let t2Idx = history.length - 1;
+	while (t1 === t2 || t2Idx < 0) {
+            t2 = history[t2Idx--].tempC;
+	    console.log(t1, t2, t2Idx);
+	}
+	if (t1 > t2) {
+	   statusMessage += 'Temp is rising, '
+           if (tenMinAvg > ALARM_MINIMUM_TEMP_F && temperatureIsIncreasing) {
+   	       console.log('Freezer too warm and getting warmer! Posting message to slack...');
+               postMessage(`*WARNING*: :warning: Freezer too warm and getting warmer! Average temperature over last 10 minutes was ${tenMinAvg}°F. Freezer is ${isFreezerRunning? 'in cooling phase :snowflake:' : 'in warming phase :zzz:'} @channel`)
+	          .then(() => console.log('Sent.'));
+	   }
+	} else if (t1 < t2) {
+           statusMessage += 'Temp is falling, '
+	} else {
+           statusMessage += 'Temp is constant, '
+	}
+	statusMessage += `motor state: ${isFreezerRunning ? 'running' : 'not running'}`;
+	console.log(statusMessage);
     })
     .catch(error => {
         console.error(error);
