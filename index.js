@@ -68,7 +68,6 @@ function iteration() {
 	let t2Idx = history.length - 1;
 	while (t1 === t2 || t2Idx < 0) {
             t2 = history[t2Idx--].tempC;
-	    console.log(t1, t2, t2Idx);
 	}
 	if (t1 > t2) {
 	   statusMessage += 'Temp is rising, '
